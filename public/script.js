@@ -2,17 +2,20 @@ const products = [
   {
     id: 1,
     name: "50K",
-    price: 15
+    price: 15,
+    image: "50k.png"
   },
   {
     id: 2,
     name: "100K",
-    price: 30
+    price: 30,
+    image: "100k.png"
   },
   {
     id: 3,
     name: "200K",
-    price: 60
+    price: 60,
+    image: "200k.png"
   }
 ];
 
@@ -38,8 +41,12 @@ function renderProducts() {
   document.getElementById("products").innerHTML =
     filtered.map(product => `
       <article class="card">
+
         <div class="product-image">
-          ✦
+          <img
+            src="${product.image}"
+            alt="${product.name}"
+          >
         </div>
 
         <h3>${product.name}</h3>
@@ -53,12 +60,15 @@ function renderProducts() {
           onclick="addToCart(${product.id})">
           Adicionar ao carrinho
         </button>
+
       </article>
     `).join("");
 }
 
 function addToCart(id) {
-  const product = products.find(product => product.id === id);
+  const product = products.find(
+    product => product.id === id
+  );
 
   cart.push(product);
 
@@ -67,11 +77,14 @@ function addToCart(id) {
 }
 
 function updateCart() {
-  document.getElementById("cartCount").textContent = cart.length;
+  document.getElementById("cartCount").textContent =
+    cart.length;
 
-  const container = document.getElementById("cartItems");
+  const container =
+    document.getElementById("cartItems");
 
   if (cart.length === 0) {
+
     container.innerHTML = `
       <p style="
         text-align:center;
@@ -81,33 +94,46 @@ function updateCart() {
         Seu carrinho está vazio.
       </p>
     `;
+
   } else {
-    container.innerHTML = cart.map((product, index) => `
-      <div class="cart-item">
-        <div class="mini-image">
-          ✦
+
+    container.innerHTML = cart.map(
+      (product, index) => `
+
+        <div class="cart-item">
+
+          <div class="mini-image">
+            <img
+              src="${product.image}"
+              alt="${product.name}"
+            >
+          </div>
+
+          <div>
+            <b>${product.name}</b>
+            <p>${money(product.price)}</p>
+          </div>
+
+          <button
+            class="remove"
+            onclick="removeFromCart(${index})">
+            ✕
+          </button>
+
         </div>
 
-        <div>
-          <b>${product.name}</b>
-          <p>${money(product.price)}</p>
-        </div>
-
-        <button
-          class="remove"
-          onclick="removeFromCart(${index})">
-          ✕
-        </button>
-      </div>
-    `).join("");
+      `
+    ).join("");
   }
 
   const total = cart.reduce(
-    (sum, product) => sum + product.price,
+    (sum, product) =>
+      sum + product.price,
     0
   );
 
-  document.getElementById("total").textContent = money(total);
+  document.getElementById("total").textContent =
+    money(total);
 }
 
 function removeFromCart(index) {
@@ -116,22 +142,43 @@ function removeFromCart(index) {
 }
 
 function openCart() {
-  document.getElementById("cart").classList.add("active");
-  document.getElementById("overlay").classList.add("active");
+  document
+    .getElementById("cart")
+    .classList
+    .add("active");
+
+  document
+    .getElementById("overlay")
+    .classList
+    .add("active");
 }
 
 function closeCart() {
-  document.getElementById("cart").classList.remove("active");
-  document.getElementById("overlay").classList.remove("active");
+  document
+    .getElementById("cart")
+    .classList
+    .remove("active");
+
+  document
+    .getElementById("overlay")
+    .classList
+    .remove("active");
 }
 
 function checkout() {
+
   if (cart.length === 0) {
-    alert("Adicione algum produto ao carrinho primeiro.");
+
+    alert(
+      "Adicione algum produto ao carrinho primeiro."
+    );
+
     return;
   }
 
-  alert("Checkout preparado!");
+  alert(
+    "Checkout preparado!"
+  );
 }
 
 renderProducts();
