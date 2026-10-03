@@ -1,9 +1,134 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SERV 20</title><style>*{box-sizing:border-box}body{margin:0;background:#080b10;color:#fff;font-family:Arial,sans-serif}header{height:70px;padding:0 6%;display:flex;align-items:center;justify-content:space-between;background:#0d1118;border-bottom:1px solid #222b36;position:sticky;top:0;z-index:5}.logo{font-size:24px;font-weight:900}.logo b{color:#00e676}button{border:0;border-radius:10px;padding:11px 16px;font-weight:800;cursor:pointer}.green{background:#00e676;color:#06100a}.dark{background:#252d38;color:#fff}.wrap{max-width:1100px;margin:auto;padding:35px 20px}.hero{text-align:center;padding:55px 20px;background:linear-gradient(135deg,#0d141d,#111c18)}.hero h1{font-size:42px;margin:0 0 10px}.muted{color:#929eab}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}.card,.panel{background:#10151d;border:1px solid #222b36;border-radius:16px;padding:20px}.price{font-size:26px;font-weight:900;margin:14px 0}.stock{color:#9ca8b5;margin-bottom:14px}.stock b{color:#00e676}.add{width:100%}.modal{display:none;position:fixed;inset:0;background:#000b;align-items:center;justify-content:center;z-index:20}.modal.show{display:flex}.box{width:min(420px,92%);background:#10151d;padding:22px;border-radius:16px}.box input{display:block;width:100%;margin:9px 0;padding:12px;border-radius:9px;border:1px solid #303b48;background:#080b10;color:#fff}.row{display:flex;gap:8px;justify-content:flex-end}.cart{position:fixed;right:-430px;top:0;height:100%;width:min(430px,100%);background:#0d1118;z-index:15;padding:22px;transition:.25s;overflow:auto}.cart.open{right:0}.item{border-bottom:1px solid #252d38;padding:14px 0}.qty{display:flex;gap:8px;align-items:center;margin-top:8px}.qty button{padding:5px 10px}.total{font-size:22px;font-weight:900;margin:20px 0}.admin{margin-top:35px}.adminline{display:grid;grid-template-columns:1fr 100px 100px;gap:8px;margin:9px 0}.orders{margin-top:35px}.order{border-top:1px solid #252d38;padding:15px 0}@media(max-width:600px){.hero h1{font-size:31px}.adminline{grid-template-columns:1fr 90px 90px}}
-</style></head><body><header><div class="logo">SERV <b>20</b></div><div><button class="dark" onclick="openAuth()" id="loginBtn">Entrar</button> <button class="green" onclick="openCart()">🛒 <span id="count">0</span></button></div></header><section class="hero"><h1>DINHEIRO NO SERV 20</h1><p class="muted">Escolha, coloque no carrinho e faça seu pedido.</p></section><main class="wrap"><h2>Produtos</h2><div class="grid" id="products"></div><section class="panel admin" id="admin" style="display:none"><h2>Painel do administrador</h2><div id="adminProducts"></div><button class="green" onclick="loadAdmin()">Atualizar</button><h3>Pedidos</h3><div id="orders"></div></section><section class="panel orders" id="myOrders" style="display:none"><h2>Meus pedidos</h2><div id="mine"></div></section></main><aside class="cart" id="cart"><div style="display:flex;justify-content:space-between"><h2>Carrinho</h2><button class="dark" onclick="closeCart()">✕</button></div><div id="cartItems"></div><div class="total">Total: <span id="total">R$ 0,00</span></div><button class="green" style="width:100%" onclick="checkout()">Finalizar pedido</button></aside><div class="modal" id="auth"><div class="box"><h2 id="authTitle">Entrar</h2><input id="name" placeholder="Nome" style="display:none"><input id="email" placeholder="E-mail"><input id="pass" type="password" placeholder="Senha"><button class="green" style="width:100%" onclick="submitAuth()">Continuar</button><p id="authMsg" class="muted"></p><div class="row"><button class="dark" onclick="toggleAuth()">Criar conta</button><button class="dark" onclick="closeAuth()">Fechar</button></div></div></div><script>
-let products=[],cart=JSON.parse(localStorage.cart||'[]'),token=localStorage.token||'',mode='login';const $=id=>document.getElementById(id),money=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});async function api(u,o={}){o.headers={...(o.headers||{}),'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})};let r=await fetch(u,o),j=await r.json();if(!r.ok)throw Error(j.error||'Erro');return j}
-async function load(){products=await api('/api/products');render();if(token){try{let me=await api('/api/me');$('loginBtn').textContent='Olá, '+me.name;if(me.role==='admin'){$('admin').style.display='block';loadAdmin()}else{$('myOrders').style.display='block';loadMine()}}catch{logout()}}}function render(){$('products').innerHTML=products.map(p=>`<div class="card"><h3>${p.name}</h3><div class="price">${money(p.price)}</div><div class="stock">Estoque: <b>${p.stock}</b></div><button class="green add" ${p.stock<1?'disabled':''} onclick="add(${p.id})">${p.stock?'Adicionar ao carrinho':'Esgotado'}</button></div>`).join('');renderCart()}
-function add(id){let p=products.find(x=>x.id===id),i=cart.find(x=>x.id===id);if(i){if(i.qty<p.stock)i.qty++}else cart.push({id,qty:1});saveCart();renderCart();openCart()}function change(id,d){let i=cart.find(x=>x.id===id),p=products.find(x=>x.id===id);if(!i)return;i.qty+=d;if(i.qty<=0)cart=cart.filter(x=>x.id!==id);if(i.qty>p.stock)i.qty=p.stock;saveCart();renderCart()}function saveCart(){localStorage.cart=JSON.stringify(cart)}function renderCart(){let n=cart.reduce((a,x)=>a+x.qty,0),total=0;$('count').textContent=n;$('cartItems').innerHTML=cart.length?cart.map(i=>{let p=products.find(x=>x.id===i.id);total+=p.price*i.qty;return`<div class="item"><b>${p.name}</b><br>${money(p.price*i.qty)}<div class="qty"><button class="dark" onclick="change(${p.id},-1)">−</button>${i.qty}<button class="dark" onclick="change(${p.id},1)">+</button></div></div>`}).join(''):'<p class="muted">Carrinho vazio.</p>';$('total').textContent=money(total)}
-function openCart(){$('cart').classList.add('open')}function closeCart(){$('cart').classList.remove('open')}function openAuth(){$('auth').classList.add('show');$('authMsg').textContent=''}function closeAuth(){$('auth').classList.remove('show')}function toggleAuth(){mode=mode==='login'?'register':'login';$('authTitle').textContent=mode==='login'?'Entrar':'Criar conta';$('name').style.display=mode==='login'?'none':'block'}async function submitAuth(){try{let j=await api(mode==='login'?'/api/login':'/api/register',{method:'POST',body:JSON.stringify({name:$('name').value,email:$('email').value,password:$('pass').value})});token=j.token;localStorage.token=token;closeAuth();load()}catch(e){$('authMsg').textContent=e.message}}function logout(){token='';localStorage.removeItem('token');location.reload()}
-async function checkout(){if(!token)return openAuth();if(!cart.length)return alert('Carrinho vazio');try{let o=await api('/api/orders',{method:'POST',body:JSON.stringify({items:cart})});cart=[];saveCart();renderCart();closeCart();await load();alert('Pedido #'+o.id+' criado. Status: aguardando pagamento.')}catch(e){alert(e.message)}}
-async function loadAdmin(){let ps=await api('/api/products');$('adminProducts').innerHTML=ps.map(p=>`<div class="adminline"><input value="${p.name}" id="n${p.id}"><input type="number" value="${p.stock}" id="s${p.id}"><input type="number" value="${p.price}" id="p${p.id}"><button class="green" onclick="updateP(${p.id})">Salvar</button></div>`).join('');let os=await api('/api/orders');$('orders').innerHTML=os.length?os.map(o=>`<div class="order"><b>#${o.id}</b> — ${o.userName} — ${money(o.total)} — ${o.status}<br><button class="dark" onclick="status(${o.id},'pago')">Marcar pago</button></div>`).join(''):'<p class="muted">Nenhum pedido.</p>'}async function updateP(id){await api('/api/products/'+id,{method:'PUT',body:JSON.stringify({name:$('n'+id).value,stock:$('s'+id).value,price:$('p'+id).value})});await load()}async function status(id,s){await api('/api/orders/'+id+'/status',{method:'PUT',body:JSON.stringify({status:s})});loadAdmin()}async function loadMine(){let os=await api('/api/orders');$('mine').innerHTML=os.length?os.map(o=>`<div class="order">Pedido #${o.id} — ${money(o.total)} — <b>${o.status}</b></div>`).join(''):'<p class="muted">Nenhum pedido.</p>'}load();
-</script></body></html>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Perfume Server 20</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header>
+  <div class="nav">
+    <div class="logo">
+      <span>PS</span>
+      Perfume Server 20
+    </div>
+
+    <button class="cart-button" onclick="openCart()">
+      🛒 <b id="cartCount">0</b>
+    </button>
+  </div>
+
+  <div class="search">
+    <input
+      type="text"
+      id="search"
+      placeholder="Buscar perfumes..."
+      oninput="renderProducts()"
+    >
+  </div>
+</header>
+
+<main>
+
+  <section class="hero">
+    <div class="hero-content">
+      <small>PERFUME SERVER 20</small>
+
+      <h1>
+        Seu estilo.<br>
+        <strong>Sua fragrância.</strong>
+      </h1>
+
+      <p>
+        Encontre perfumes para deixar sua presença inesquecível.
+      </p>
+
+      <a href="#produtos">Ver produtos</a>
+    </div>
+
+    <div class="bottle">
+      ✦
+    </div>
+  </section>
+
+
+  <section id="produtos">
+
+    <small class="label">
+      CATÁLOGO
+    </small>
+
+    <h2>
+      Produtos em destaque
+    </h2>
+
+    <div id="products" class="products"></div>
+
+  </section>
+
+</main>
+
+
+<!-- FUNDO DO CARRINHO -->
+
+<div
+  id="overlay"
+  onclick="closeCart()">
+</div>
+
+
+<!-- CARRINHO -->
+
+<aside id="cart">
+
+  <div class="cart-header">
+
+    <h2>
+      Seu carrinho
+    </h2>
+
+    <button onclick="closeCart()">
+      ✕
+    </button>
+
+  </div>
+
+  <div id="cartItems"></div>
+
+  <div class="cart-footer">
+
+    <div class="total">
+      <span>Total</span>
+
+      <strong id="total">
+        R$ 0,00
+      </strong>
+    </div>
+
+    <button
+      class="checkout"
+      onclick="checkout()">
+
+      Finalizar pedido
+
+    </button>
+
+  </div>
+
+</aside>
+
+
+<footer>
+
+  © 2026 Perfume Server 20
+
+</footer>
+
+
+<script src="script.js"></script>
+
+</body>
+</html>
