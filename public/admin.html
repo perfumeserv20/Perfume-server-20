@@ -140,6 +140,29 @@
       font-size: 12px;
     }
 
+    .status-area {
+      margin-top: 18px;
+      padding-top: 15px;
+      border-top: 1px solid #eee;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .status-select {
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      background: white;
+      font-size: 14px;
+    }
+
+    .save-status {
+      background: #111827;
+      color: white;
+    }
+
     .empty {
       background: white;
       padding: 40px;
@@ -323,6 +346,58 @@
                   .toLocaleString("pt-BR")}
               </div>
 
+
+              <div class="status-area">
+
+                <select
+                  class="status-select"
+                  id="status-${order.id}">
+
+                  <option
+                    value="aguardando_pagamento"
+                    ${order.status === "aguardando_pagamento" ? "selected" : ""}>
+
+                    Aguardando pagamento
+
+                  </option>
+
+                  <option
+                    value="pago"
+                    ${order.status === "pago" ? "selected" : ""}>
+
+                    Pago
+
+                  </option>
+
+                  <option
+                    value="enviado"
+                    ${order.status === "enviado" ? "selected" : ""}>
+
+                    Enviado
+
+                  </option>
+
+                  <option
+                    value="concluido"
+                    ${order.status === "concluido" ? "selected" : ""}>
+
+                    Concluído
+
+                  </option>
+
+                </select>
+
+
+                <button
+                  class="save-status"
+                  onclick="updateStatus('${order.id}')">
+
+                  Salvar status
+
+                </button>
+
+              </div>
+
             </div>
 
           `).join("");
@@ -345,6 +420,74 @@
     }
 
 
+    async function updateStatus(id) {
+
+      const select =
+        document.getElementById(
+          `status-${id}`
+        );
+
+
+      const status =
+        select.value;
+
+
+      try {
+
+        const response =
+          await fetch("/api/admin-status", {
+
+            method: "PUT",
+
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
+
+            body: JSON.stringify({
+
+              id: id,
+
+              status: status
+
+            })
+
+          });
+
+
+        const data =
+          await response.json();
+
+
+        if (!response.ok) {
+
+          throw new Error(
+            data.error ||
+            "Erro ao atualizar status."
+          );
+
+        }
+
+
+        alert(
+          "Status atualizado com sucesso!"
+        );
+
+
+        loadOrders();
+
+
+      } catch (error) {
+
+        console.error(error);
+
+        alert(error.message);
+
+      }
+
+    }
+
+
     function escapeHtml(value) {
 
       return String(value)
@@ -352,15 +495,4 @@
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-
-    }
-
-
-    loadOrders();
-
-  </script>
-
-</body>
-
-</html>
+        .replaceAll("'", "&#039
