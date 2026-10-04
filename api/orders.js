@@ -11,58 +11,24 @@ module.exports = async (req, res) => {
 
   try {
 
-    const result = await pool.query(`
-      INSERT INTO orders
-      (
-        id,
-        user_name,
-        items,
-        total,
-        status,
-        email
-      )
-      VALUES
-      (
-        $1,
-        $2,
-        $3,
-        $4,
-        $5,
-        $6
-      )
-      RETURNING *
-    `, [
-      Date.now(),
-      "TESTE",
-      JSON.stringify([
-        {
-          id: 1,
-          name: "50K",
-          price: 15,
-          qty: 1
-        }
-      ]),
-      15,
-      "aguardando_pagamento",
-      "teste@teste.com"
-    ]);
+    await pool.query(`
+      ALTER TABLE orders
+      ALTER COLUMN created_at
+      SET DEFAULT NOW()
+    `);
 
     return res.status(200).json({
       ok: true,
-      pedido: result.rows[0]
+      message: "created_at corrigido"
     });
 
   } catch (error) {
 
-    console.error("ERRO INSERT:", error);
+    console.error(error);
 
     return res.status(500).json({
       ok: false,
-      erro: error.message,
-      codigo: error.code,
-      detalhe: error.detail,
-      tabela: error.table,
-      coluna: error.column
+      erro: error.message
     });
 
   }
