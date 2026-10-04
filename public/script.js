@@ -1,7 +1,22 @@
 const products = [
-  { id: 1, name: "50K", price: 15, image: "50k.png" },
-  { id: 2, name: "100K", price: 30, image: "100k.png" },
-  { id: 3, name: "200K", price: 60, image: "200k.png" }
+  {
+    id: 1,
+    name: "50K",
+    price: 15,
+    image: "50k.png"
+  },
+  {
+    id: 2,
+    name: "100K",
+    price: 30,
+    image: "100k.png"
+  },
+  {
+    id: 3,
+    name: "200K",
+    price: 60,
+    image: "200k.png"
+  }
 ];
 
 let cart = [];
@@ -14,16 +29,26 @@ function money(value) {
 }
 
 function renderProducts() {
-  const searchInput = document.getElementById("search");
-  const productsContainer = document.getElementById("products");
 
-  if (!searchInput || !productsContainer) return;
+  const searchInput =
+    document.getElementById("search");
 
-  const search = searchInput.value.toLowerCase();
+  const productsContainer =
+    document.getElementById("products");
 
-  const filtered = products.filter(product =>
-    product.name.toLowerCase().includes(search)
-  );
+  if (!searchInput || !productsContainer) {
+    return;
+  }
+
+  const search =
+    searchInput.value.toLowerCase();
+
+  const filtered =
+    products.filter(product =>
+      product.name
+        .toLowerCase()
+        .includes(search)
+    );
 
   productsContainer.innerHTML =
     filtered.map(product => `
@@ -36,7 +61,9 @@ function renderProducts() {
           >
         </div>
 
-        <h3>${product.name}</h3>
+        <h3>
+          ${product.name}
+        </h3>
 
         <p class="price">
           ${money(product.price)}
@@ -55,10 +82,16 @@ function renderProducts() {
 }
 
 function addToCart(id) {
-  const product =
-    products.find(product => product.id === id);
 
-  if (!product) return;
+  const product =
+    products.find(
+      product =>
+        product.id === id
+    );
+
+  if (!product) {
+    return;
+  }
 
   cart.push(product);
 
@@ -76,10 +109,13 @@ function updateCart() {
     document.getElementById("cartItems");
 
   if (cartCount) {
-    cartCount.textContent = cart.length;
+    cartCount.textContent =
+      cart.length;
   }
 
-  if (!container) return;
+  if (!container) {
+    return;
+  }
 
   if (cart.length === 0) {
 
@@ -96,34 +132,42 @@ function updateCart() {
   } else {
 
     container.innerHTML =
-      cart.map((product, index) => `
-        <div class="cart-item">
+      cart.map(
+        (product, index) => `
+          <div class="cart-item">
 
-          <div class="mini-image">
-            <img
-              src="${product.image}"
-              alt="${product.name}"
-            >
+            <div class="mini-image">
+
+              <img
+                src="${product.image}"
+                alt="${product.name}"
+              >
+
+            </div>
+
+            <div>
+
+              <b>
+                ${product.name}
+              </b>
+
+              <p>
+                ${money(product.price)}
+              </p>
+
+            </div>
+
+            <button
+              class="remove"
+              onclick="removeFromCart(${index})">
+
+              ✕
+
+            </button>
+
           </div>
-
-          <div>
-            <b>${product.name}</b>
-
-            <p>
-              ${money(product.price)}
-            </p>
-          </div>
-
-          <button
-            class="remove"
-            onclick="removeFromCart(${index})">
-
-            ✕
-
-          </button>
-
-        </div>
-      `).join("");
+        `
+      ).join("");
   }
 
   const total =
@@ -137,12 +181,15 @@ function updateCart() {
     document.getElementById("total");
 
   if (totalElement) {
-    totalElement.textContent = money(total);
+    totalElement.textContent =
+      money(total);
   }
 }
 
 function removeFromCart(index) {
+
   cart.splice(index, 1);
+
   updateCart();
 }
 
@@ -183,16 +230,20 @@ function closeCart() {
 function checkout() {
 
   if (cart.length === 0) {
+
     alert(
       "Adicione algum produto ao carrinho primeiro."
     );
+
     return;
   }
 
   renderCheckout();
 
   const modal =
-    document.getElementById("checkoutModal");
+    document.getElementById(
+      "checkoutModal"
+    );
 
   if (modal) {
     modal.classList.add("active");
@@ -204,9 +255,13 @@ function checkout() {
 function renderCheckout() {
 
   const container =
-    document.getElementById("checkoutItems");
+    document.getElementById(
+      "checkoutItems"
+    );
 
-  if (!container) return;
+  if (!container) {
+    return;
+  }
 
   container.innerHTML =
     cart.map(product => `
@@ -236,7 +291,9 @@ function renderCheckout() {
     );
 
   const checkoutTotal =
-    document.getElementById("checkoutTotal");
+    document.getElementById(
+      "checkoutTotal"
+    );
 
   if (checkoutTotal) {
     checkoutTotal.textContent =
@@ -247,14 +304,16 @@ function renderCheckout() {
 function closeCheckout() {
 
   const modal =
-    document.getElementById("checkoutModal");
+    document.getElementById(
+      "checkoutModal"
+    );
 
   if (modal) {
     modal.classList.remove("active");
   }
 }
 
-function showPix(paymentData) {
+function showPix(paymentData, total) {
 
   const qrCode =
     paymentData.qrCode;
@@ -284,7 +343,7 @@ function showPix(paymentData) {
   modal.style.padding = "20px";
   modal.style.boxSizing = "border-box";
 
-  modal.innerHTML = `
+    modal.innerHTML = `
     <div style="
       background:white;
       width:100%;
@@ -311,6 +370,14 @@ function showPix(paymentData) {
         Escaneie o QR Code para pagar.
       </p>
 
+      <div style="
+        font-size:24px;
+        font-weight:bold;
+        margin:15px 0 20px;
+      ">
+        ${money(Number(total))}
+      </div>
+
       ${
         qrCodeBase64
           ? `
@@ -327,7 +394,10 @@ function showPix(paymentData) {
             >
           `
           : `
-            <p style="color:#c00;">
+            <p style="
+              color:#c00;
+              margin:20px 0;
+            ">
               QR Code não disponível.
             </p>
           `
@@ -394,48 +464,67 @@ function showPix(paymentData) {
   document.body.appendChild(modal);
 
   const copyButton =
-    document.getElementById("copyPixButton");
+    document.getElementById(
+      "copyPixButton"
+    );
 
   if (copyButton) {
 
-    copyButton.onclick = async function () {
+    copyButton.onclick =
+      async function () {
 
-      try {
+        try {
 
-        await navigator.clipboard.writeText(
-          qrCode || ""
-        );
+          await navigator.clipboard.writeText(
+            qrCode || ""
+          );
 
-        copyButton.textContent =
-          "Pix copiado!";
-
-        setTimeout(() => {
-          copyButton.textContent =
-            "Copiar Pix";
-        }, 2000);
-
-      } catch (error) {
-
-        const textarea =
-          document.getElementById("pixCopyCode");
-
-        if (textarea) {
-          textarea.select();
-          document.execCommand("copy");
           copyButton.textContent =
             "Pix copiado!";
+
+          setTimeout(() => {
+
+            copyButton.textContent =
+              "Copiar Pix";
+
+          }, 2000);
+
+        } catch (error) {
+
+          const textarea =
+            document.getElementById(
+              "pixCopyCode"
+            );
+
+          if (textarea) {
+
+            textarea.select();
+
+            document.execCommand(
+              "copy"
+            );
+
+            copyButton.textContent =
+              "Pix copiado!";
+
+          }
+
         }
-      }
-    };
+      };
   }
 
   const closeButton =
-    document.getElementById("closePixButton");
+    document.getElementById(
+      "closePixButton"
+    );
 
   if (closeButton) {
+
     closeButton.onclick =
       function () {
+
         modal.remove();
+
       };
   }
 }
@@ -443,10 +532,14 @@ function showPix(paymentData) {
 async function confirmOrder() {
 
   const nameElement =
-    document.getElementById("customerName");
+    document.getElementById(
+      "customerName"
+    );
 
   const emailElement =
-    document.getElementById("customerEmail");
+    document.getElementById(
+      "customerEmail"
+    );
 
   const name =
     nameElement
@@ -459,22 +552,30 @@ async function confirmOrder() {
       : "";
 
   if (!name) {
+
     alert("Digite seu nome.");
+
     return;
   }
 
   if (!email) {
+
     alert("Digite seu e-mail.");
+
     return;
   }
 
   if (!email.includes("@")) {
+
     alert("Digite um e-mail válido.");
+
     return;
   }
 
   if (cart.length === 0) {
+
     alert("Seu carrinho está vazio.");
+
     return;
   }
 
@@ -484,36 +585,45 @@ async function confirmOrder() {
 
     const existing =
       items.find(
-        item => item.id === product.id
+        item =>
+          item.id === product.id
       );
 
     if (existing) {
+
       existing.qty++;
+
     } else {
+
       items.push({
         id: product.id,
         qty: 1
       });
+
     }
+
   });
 
   try {
 
     const response =
-      await fetch("/api/orders", {
-        method: "POST",
+      await fetch(
+        "/api/orders",
+        {
+          method: "POST",
 
-        headers: {
-          "Content-Type":
-            "application/json"
-        },
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
 
-        body: JSON.stringify({
-          name: name,
-          email: email,
-          items: items
-        })
-      });
+          body: JSON.stringify({
+            name: name,
+            email: email,
+            items: items
+          })
+        }
+      );
 
     const data =
       await response.json();
@@ -529,19 +639,22 @@ async function confirmOrder() {
     }
 
     const paymentResponse =
-      await fetch("/api/payment", {
-        method: "POST",
+      await fetch(
+        "/api/payment",
+        {
+          method: "POST",
 
-        headers: {
-          "Content-Type":
-            "application/json"
-        },
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
 
-        body: JSON.stringify({
-          orderId: data.id,
-          email: email
-        })
-      });
+          body: JSON.stringify({
+            orderId: data.id,
+            email: email
+          })
+        }
+      );
 
     const paymentData =
       await paymentResponse.json();
@@ -563,7 +676,10 @@ async function confirmOrder() {
 
     closeCheckout();
 
-    showPix(paymentData);
+    showPix(
+      paymentData,
+      data.total
+    );
 
     cart = [];
 
