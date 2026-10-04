@@ -11,19 +11,23 @@ module.exports = async (req, res) => {
 
   try {
 
-    const result = await pool.query(
-      "SELECT NOW() AS agora"
-    );
+    const result = await pool.query(`
+      SELECT
+        column_name,
+        data_type
+      FROM information_schema.columns
+      WHERE table_name = 'orders'
+      ORDER BY ordinal_position
+    `);
 
     return res.status(200).json({
       ok: true,
-      banco: "conectado",
-      horario: result.rows[0].agora
+      colunas: result.rows
     });
 
   } catch (error) {
 
-    console.error("ERRO NEON:", error);
+    console.error("ERRO:", error);
 
     return res.status(500).json({
       ok: false,
