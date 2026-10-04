@@ -90,10 +90,6 @@ module.exports = async (req, res) => {
 
     const orderId = Date.now();
 
-    /*
-      1. SALVA O PEDIDO
-    */
-
     await pool.query(
       `
         INSERT INTO orders
@@ -118,10 +114,6 @@ module.exports = async (req, res) => {
       ]
     );
 
-    /*
-      2. VERIFICA O TOKEN
-    */
-
     const accessToken =
       process.env.MERCADOPAGO_ACCESS_TOKEN;
 
@@ -133,10 +125,6 @@ module.exports = async (req, res) => {
       });
 
     }
-
-    /*
-      3. CRIA O PIX NO MERCADO PAGO
-    */
 
     const idempotencyKey =
       crypto.randomUUID();
@@ -207,11 +195,6 @@ module.exports = async (req, res) => {
     const mpData =
       await mpResponse.json();
 
-    /*
-      4. SE MERCADO PAGO RECUSAR,
-         MOSTRA O ERRO EXATO
-    */
-
     if (!mpResponse.ok) {
 
       console.error(
@@ -228,16 +211,12 @@ module.exports = async (req, res) => {
         error:
           "Não foi possível criar o Pix.",
 
-        mercadoPagoError:
-          mpData
+        details:
+          JSON.stringify(mpData)
 
       });
 
     }
-
-    /*
-      5. PEGA OS DADOS DO PIX
-    */
 
     const payment =
       mpData
@@ -248,47 +227,26 @@ module.exports = async (req, res) => {
     const paymentMethod =
       payment?.payment_method;
 
-    /*
-      6. SALVA OS DADOS DO PIX
-         NO PEDIDO
-    */
-
     await pool.query(
       `
         UPDATE orders
-
         SET
-
           mercado_pago_order_id = $1,
-
           mercado_pago_payment_id = $2,
-
           pix_qr_code = $3,
-
           pix_qr_code_base64 = $4,
-
           pix_ticket_url = $5
-
         WHERE id = $6
       `,
       [
         mpData.id || null,
-
         payment?.id || null,
-
         paymentMethod?.qr_code || null,
-
         paymentMethod?.qr_code_base64 || null,
-
         paymentMethod?.ticket_url || null,
-
         orderId
       ]
     );
-
-    /*
-      7. DEVOLVE O PIX PARA A LOJA
-    */
 
     return res.status(200).json({
 
