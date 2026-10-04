@@ -1,4 +1,5 @@
 const { Pool } = require("pg");
+const crypto = require("crypto");
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -46,6 +47,139 @@ async function createTable() {
     ALTER TABLE orders
     ADD COLUMN IF NOT EXISTS email TEXT
   `);
+
+  await pool.query(`
+    ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS mercado_pago_order_id TEXT
+  `);
+
+  await pool.query(`
+    ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS mercado_pago_payment_id TEXT
+  `);
+
+  await pool.query(`
+    ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS pix_qr_code TEXT
+  `);
+
+  await pool.query(`
+    ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS pix_qr_code_base64 TEXT
+  `);
+
+  await pool.query(`
+    ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS pix_ticket_url TEXT
+  `);
+}
+
+async function createPix(order) {
+
+  const idempotencyKey =
+    crypto.randomUUID();
+
+  const response = await fetch(
+    "https://api.mercadopago.com/v1/orders",
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+
+        "Authorization":
+          `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
+
+        "X-Idempotency-Key":
+          idempotencyKey
+      },
+
+      body: JSON.stringify({
+
+        type: "online",
+
+        total_amount:
+          Number(order.total).toFixed(2),
+
+        external_reference:
+          String(order.id),
+
+        processing_mode:
+          "automatic",
+
+        transactions: {
+
+          payments: [
+
+            {
+
+              amount:
+                Number(order.total).toFixed(2),
+
+              payment_method: {
+
+                id: "pix",
+
+                type: "bank_transfer"
+
+              }
+
+            }
+
+          ]
+
+        },
+
+        payer: {
+
+          email:
+            order.email
+
+        }
+
+      })
+    }
+  );
+
+  const data =
+    await response.json();
+
+  if (!response.ok) {
+
+    console.error(
+      "Erro Mercado Pago:",
+      data
+    );
+
+    throw new Error(
+      "Não foi possível criar o Pix."
+    );
+  }
+
+  const payment =
+    data?.transactions?.payments?.[0];
+
+  const paymentMethod =
+    payment?.payment_method;
+
+  return {
+
+    mercadoPagoOrderId:
+      data.id || null,
+
+    paymentId:
+      payment?.id || null,
+
+    qrCode:
+      paymentMethod?.qr_code || null,
+
+    qrCodeBase64:
+      paymentMethod?.qr_code_base64 || null,
+
+    ticketUrl:
+      paymentMethod?.ticket_url || null
+
+  };
 }
 
 module.exports = async (req, res) => {
@@ -153,7 +287,8 @@ module.exports = async (req, res) => {
 
     const order = {
 
-      id: Date.now(),
+      id:
+        Date.now(),
 
       userName:
         String(name).trim(),
@@ -200,7 +335,72 @@ module.exports = async (req, res) => {
       ]
     );
 
-    return res.status(200).json(order);
+    const pix =
+      await createPix(order);
+
+    await pool.query(
+      `
+        UPDATE orders
+
+        SET
+          mercado_pago_order_id = $1,
+          mercado_pago_payment_id = $2,
+          pix_qr_code = $3,
+          pix_qr_code_base64 = $4,
+          pix_ticket_url = $5
+
+        WHERE id = $6
+      `,
+      [
+        pix.mercadoPagoOrderId,
+        pix.paymentId,
+        pix.qrCode,
+        pix.qrCodeBase64,
+        pix.ticketUrl,
+        order.id
+      ]
+    );
+
+    return res.status(200).json({
+
+      id:
+        order.id,
+
+      userName:
+        order.userName,
+
+      email:
+        order.email,
+
+      items:
+        order.items,
+
+      total:
+        order.total,
+
+      status:
+        order.status,
+
+      pix: {
+
+        orderId:
+          pix.mercadoPagoOrderId,
+
+        paymentId:
+          pix.paymentId,
+
+        qrCode:
+          pix.qrCode,
+
+        qrCodeBase64:
+          pix.qrCodeBase64,
+
+        ticketUrl:
+          pix.ticketUrl
+
+      }
+
+    });
 
   } catch (error) {
 
@@ -208,7 +408,8 @@ module.exports = async (req, res) => {
 
     return res.status(500).json({
       error:
-        "Erro ao salvar o pedido."
+        error.message ||
+        "Erro ao criar o pedido e o Pix."
     });
 
   }
