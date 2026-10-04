@@ -10,31 +10,42 @@
 <body>
 
 <header>
+
   <div class="nav">
+
     <div class="logo">
       <span>PS</span>
       Perfume Server 20
     </div>
 
-    <button class="cart-button" onclick="openCart()">
+    <button
+      class="cart-button"
+      onclick="openCart()">
+
       🛒 <b id="cartCount">0</b>
+
     </button>
+
   </div>
 
   <div class="search">
+
     <input
       type="text"
       id="search"
       placeholder="Buscar perfumes..."
-      oninput="renderProducts()"
-    >
+      oninput="renderProducts()">
+
   </div>
+
 </header>
 
 <main>
 
   <section class="hero">
+
     <div class="hero-content">
+
       <small>PERFUME SERVER 20</small>
 
       <h1>
@@ -46,12 +57,16 @@
         Encontre perfumes para deixar sua presença inesquecível.
       </p>
 
-      <a href="#produtos">Ver produtos</a>
+      <a href="#produtos">
+        Ver produtos
+      </a>
+
     </div>
 
     <div class="bottle">
       ✦
     </div>
+
   </section>
 
 
@@ -65,7 +80,10 @@
       Produtos em destaque
     </h2>
 
-    <div id="products" class="products"></div>
+    <div
+      id="products"
+      class="products">
+    </div>
 
   </section>
 
@@ -96,17 +114,25 @@
 
   </div>
 
-  <div id="cartItems"></div>
+
+  <div id="cartItems">
+  </div>
+
 
   <div class="cart-footer">
 
     <div class="total">
-      <span>Total</span>
+
+      <span>
+        Total
+      </span>
 
       <strong id="total">
         R$ 0,00
       </strong>
+
     </div>
+
 
     <button
       class="checkout"
@@ -119,6 +145,88 @@
   </div>
 
 </aside>
+
+
+<!-- CHECKOUT -->
+
+<div
+  id="checkoutModal"
+  class="checkout-modal">
+
+  <div class="checkout-box">
+
+    <div class="checkout-header">
+
+      <h2>
+        Finalizar pedido
+      </h2>
+
+      <button
+        onclick="closeCheckout()">
+
+        ✕
+
+      </button>
+
+    </div>
+
+
+    <div class="checkout-content">
+
+      <label>
+        Seu nome
+      </label>
+
+      <input
+        type="text"
+        id="customerName"
+        placeholder="Digite seu nome">
+
+
+      <label>
+        WhatsApp
+      </label>
+
+      <input
+        type="tel"
+        id="customerPhone"
+        placeholder="(00) 00000-0000">
+
+
+      <h3>
+        Resumo do pedido
+      </h3>
+
+      <div id="checkoutItems">
+      </div>
+
+
+      <div class="checkout-total">
+
+        <span>
+          Total
+        </span>
+
+        <strong id="checkoutTotal">
+          R$ 0,00
+        </strong>
+
+      </div>
+
+
+      <button
+        class="confirm-order"
+        onclick="confirmOrder()">
+
+        Confirmar pedido
+
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
 
 
 <footer>
