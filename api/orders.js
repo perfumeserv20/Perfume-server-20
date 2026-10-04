@@ -1,13 +1,11 @@
 const { Pool } = require("pg");
 
-
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
   }
 });
-
 
 const products = [
   {
@@ -30,29 +28,25 @@ const products = [
   }
 ];
 
-
 async function createTable() {
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS orders (
-
       id BIGINT PRIMARY KEY,
-
       user_name TEXT NOT NULL,
-
+      email TEXT,
       items JSONB NOT NULL,
-
       total NUMERIC(10,2) NOT NULL,
-
       status TEXT NOT NULL,
-
       created_at TIMESTAMPTZ NOT NULL
-
     )
   `);
 
+  await pool.query(`
+    ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS email TEXT
+  `);
 }
-
 
 module.exports = async (req, res) => {
 
@@ -64,17 +58,15 @@ module.exports = async (req, res) => {
 
   }
 
-
   try {
 
     await createTable();
 
-
     const {
       name,
+      email,
       items
     } = req.body || {};
-
 
     if (!name) {
 
@@ -84,6 +76,21 @@ module.exports = async (req, res) => {
 
     }
 
+    if (!email) {
+
+      return res.status(400).json({
+        error: "Digite seu e-mail."
+      });
+
+    }
+
+    if (!email.includes("@")) {
+
+      return res.status(400).json({
+        error: "Digite um e-mail válido."
+      });
+
+    }
 
     if (
       !Array.isArray(items) ||
@@ -96,27 +103,25 @@ module.exports = async (req, res) => {
 
     }
 
-
     const cleanItems = [];
 
     let total = 0;
 
-
     for (const item of items) {
 
-      const product = products.find(
-        product =>
-          product.id === Number(item.id)
-      );
+      const product =
+        products.find(
+          product =>
+            product.id === Number(item.id)
+        );
 
-
-      const quantity = Math.max(
-        0,
-        Math.floor(
-          Number(item.qty) || 0
-        )
-      );
-
+      const quantity =
+        Math.max(
+          0,
+          Math.floor(
+            Number(item.qty) || 0
+          )
+        );
 
       if (!product || quantity < 1) {
 
@@ -125,7 +130,6 @@ module.exports = async (req, res) => {
         });
 
       }
-
 
       if (quantity > product.stock) {
 
@@ -136,43 +140,39 @@ module.exports = async (req, res) => {
 
       }
 
-
       cleanItems.push({
-
         productId: product.id,
-
         name: product.name,
-
         price: product.price,
-
         qty: quantity
-
       });
-
 
       total +=
         product.price * quantity;
-
     }
-
 
     const order = {
 
       id: Date.now(),
 
-      userName: String(name),
+      userName:
+        String(name).trim(),
 
-      items: cleanItems,
+      email:
+        String(email).trim(),
+
+      items:
+        cleanItems,
 
       total,
 
-      status: "aguardando_pagamento",
+      status:
+        "aguardando_pagamento",
 
       createdAt:
         new Date().toISOString()
 
     };
-
 
     await pool.query(
       `
@@ -180,17 +180,19 @@ module.exports = async (req, res) => {
         (
           id,
           user_name,
+          email,
           items,
           total,
           status,
           created_at
         )
         VALUES
-        ($1, $2, $3, $4, $5, $6)
+        ($1, $2, $3, $4, $5, $6, $7)
       `,
       [
         order.id,
         order.userName,
+        order.email,
         JSON.stringify(order.items),
         order.total,
         order.status,
@@ -198,19 +200,15 @@ module.exports = async (req, res) => {
       ]
     );
 
-
     return res.status(200).json(order);
-
 
   } catch (error) {
 
     console.error(error);
 
     return res.status(500).json({
-
       error:
         "Erro ao salvar o pedido."
-
     });
 
   }
