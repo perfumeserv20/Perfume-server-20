@@ -1,8 +1,5 @@
-module.exports = async (req, res) => {
-
-  return res.status(200).json({
-    ok: true,
-    message: "API orders funcionando"
+module.exports = (req, res) => {
+  res.json({
+    ok: true
   });
-
 };
