@@ -29,12 +29,8 @@ function money(value) {
 }
 
 function renderProducts() {
-
-  const searchInput =
-    document.getElementById("search");
-
-  const productsContainer =
-    document.getElementById("products");
+  const searchInput = document.getElementById("search");
+  const productsContainer = document.getElementById("products");
 
   if (!searchInput || !productsContainer) {
     return;
@@ -43,24 +39,21 @@ function renderProducts() {
   const search =
     searchInput.value.toLowerCase();
 
-  const filtered =
-    products.filter(product =>
-      product.name
-        .toLowerCase()
-        .includes(search)
-    );
+  const filtered = products.filter(product =>
+    product.name
+      .toLowerCase()
+      .includes(search)
+  );
 
   productsContainer.innerHTML =
     filtered.map(product => `
       <article class="card">
 
         <div class="product-image">
-
           <img
             src="${product.image}"
             alt="${product.name}"
           >
-
         </div>
 
         <h3>
@@ -261,4 +254,217 @@ function renderCheckout() {
       "checkoutItems"
     );
 
-  if (!
+  if (!container) {
+    return;
+  }
+
+  container.innerHTML =
+    cart.map(product => `
+      <div style="
+        display:flex;
+        justify-content:space-between;
+        padding:8px 0;
+        border-bottom:1px solid #eee;
+      ">
+
+        <span>
+          ${product.name}
+        </span>
+
+        <strong>
+          ${money(product.price)}
+        </strong>
+
+      </div>
+    `).join("");
+
+  const total =
+    cart.reduce(
+      (sum, product) =>
+        sum + product.price,
+      0
+    );
+
+  const checkoutTotal =
+    document.getElementById(
+      "checkoutTotal"
+    );
+
+  if (checkoutTotal) {
+    checkoutTotal.textContent =
+      money(total);
+  }
+}
+
+function closeCheckout() {
+
+  const modal =
+    document.getElementById(
+      "checkoutModal"
+    );
+
+  if (modal) {
+    modal.classList.remove("active");
+  }
+}
+
+async function confirmOrder() {
+
+  const nameElement =
+    document.getElementById("customerName");
+
+  const emailElement =
+    document.getElementById("customerEmail");
+
+  const name =
+    nameElement
+      ? nameElement.value.trim()
+      : "";
+
+  const email =
+    emailElement
+      ? emailElement.value.trim()
+      : "";
+
+  if (!name) {
+    alert("Digite seu nome.");
+    return;
+  }
+
+  if (!email) {
+    alert("Digite seu e-mail.");
+    return;
+  }
+
+  if (!email.includes("@")) {
+    alert("Digite um e-mail válido.");
+    return;
+  }
+
+  if (cart.length === 0) {
+    alert("Seu carrinho está vazio.");
+    return;
+  }
+
+  const items = [];
+
+  cart.forEach(product => {
+
+    const existing =
+      items.find(
+        item =>
+          item.id === product.id
+      );
+
+    if (existing) {
+
+      existing.qty++;
+
+    } else {
+
+      items.push({
+        id: product.id,
+        qty: 1
+      });
+
+    }
+
+  });
+
+  try {
+
+    const response =
+      await fetch(
+        "/api/orders",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body: JSON.stringify({
+            name: name,
+            email: email,
+            items: items
+          })
+        }
+      );
+
+    const data =
+      await response.json();
+
+    if (!response.ok) {
+
+      alert(
+        data.error ||
+        "Não foi possível salvar o pedido."
+      );
+
+      return;
+    }
+
+    const paymentResponse =
+      await fetch(
+        "/api/payment",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body: JSON.stringify({
+            orderId: data.id,
+            email: email
+          })
+        }
+      );
+
+    const paymentData =
+      await paymentResponse.json();
+
+    if (!paymentResponse.ok) {
+
+      console.error(
+        "Erro Pix:",
+        paymentData
+      );
+
+      alert(
+        paymentData.error ||
+        "Pedido criado, mas não foi possível gerar o Pix."
+      );
+
+      return;
+    }
+
+    console.log(
+      "PIX GERADO:",
+      paymentData
+    );
+
+    alert(
+      "Pix criado com sucesso!\n\n" +
+      "Pedido: " +
+      paymentData.orderId +
+      "\n\n" +
+      "QR Code:\n" +
+      (paymentData.qrCode || "Não retornado")
+    );
+
+  } catch (error) {
+
+    console.error(error);
+
+    alert(
+      "Não foi possível conectar ao servidor."
+    );
+  }
+}
+
+renderProducts();
+
+updateCart();
