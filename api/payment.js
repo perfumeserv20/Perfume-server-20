@@ -18,12 +18,19 @@ module.exports = async (req, res) => {
   try {
 
     const {
-      orderId
+      orderId,
+      email
     } = req.body || {};
 
     if (!orderId) {
       return res.status(400).json({
         error: "ID do pedido é obrigatório."
+      });
+    }
+
+    if (!email) {
+      return res.status(400).json({
+        error: "E-mail do comprador é obrigatório."
       });
     }
 
@@ -48,6 +55,9 @@ module.exports = async (req, res) => {
 
     const order = result.rows[0];
 
+    const idempotencyKey =
+      `${order.id}-${Date.now()}`;
+
     const response = await fetch(
       "https://api.mercadopago.com/v1/orders",
       {
@@ -55,33 +65,57 @@ module.exports = async (req, res) => {
 
         headers: {
           "Content-Type": "application/json",
+
           "Authorization":
             `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
+
           "X-Idempotency-Key":
-            String(order.id)
+            idempotencyKey
         },
 
         body: JSON.stringify({
+
           type: "online",
-          total_amount: Number(order.total).toFixed(2),
+
+          total_amount:
+            Number(order.total).toFixed(2),
+
           external_reference:
             String(order.id),
 
+          processing_mode:
+            "automatic",
+
           transactions: {
+
             payments: [
+
               {
+
                 amount:
-                  Number(order.total).toFixed(2)
+                  Number(order.total).toFixed(2),
+
+                payment_method: {
+
+                  id: "pix",
+
+                  type: "bank_transfer"
+
+                }
+
               }
+
             ]
+
           },
 
-          processing_mode: "automatic",
-
           payer: {
+
             email:
-              "cliente@exemplo.com"
+              String(email).trim()
+
           }
+
         })
       }
     );
@@ -92,18 +126,54 @@ module.exports = async (req, res) => {
     if (!response.ok) {
 
       console.error(
-        "Mercado Pago:",
+        "Erro Mercado Pago:",
         data
       );
 
       return res.status(response.status).json({
         error:
-          "Não foi possível criar o pagamento.",
+          "Não foi possível criar o Pix.",
         details: data
       });
+
     }
 
-    return res.status(200).json(data);
+    const payment =
+      data
+        ?.transactions
+        ?.payments
+        ?.[0];
+
+    const paymentMethod =
+      payment?.payment_method;
+
+    return res.status(200).json({
+
+      orderId:
+        order.id,
+
+      mercadoPagoOrderId:
+        data.id,
+
+      paymentId:
+        payment?.id || null,
+
+      status:
+        payment?.status || null,
+
+      statusDetail:
+        payment?.status_detail || null,
+
+      qrCode:
+        paymentMethod?.qr_code || null,
+
+      qrCodeBase64:
+        paymentMethod?.qr_code_base64 || null,
+
+      ticketUrl:
+        paymentMethod?.ticket_url || null
+
+    });
 
   } catch (error) {
 
