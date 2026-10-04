@@ -1,3 +1,14 @@
+const { Pool } = require("pg");
+
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+
+
 const products = [
   {
     id: 1,
@@ -20,7 +31,30 @@ const products = [
 ];
 
 
-module.exports = (req, res) => {
+async function createTable() {
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS orders (
+
+      id BIGINT PRIMARY KEY,
+
+      user_name TEXT NOT NULL,
+
+      items JSONB NOT NULL,
+
+      total NUMERIC(10,2) NOT NULL,
+
+      status TEXT NOT NULL,
+
+      created_at TIMESTAMPTZ NOT NULL
+
+    )
+  `);
+
+}
+
+
+module.exports = async (req, res) => {
 
   if (req.method !== "POST") {
 
@@ -31,107 +65,154 @@ module.exports = (req, res) => {
   }
 
 
-  const {
-    name,
-    items
-  } = req.body || {};
+  try {
+
+    await createTable();
 
 
-  if (!name) {
-
-    return res.status(400).json({
-      error: "Digite seu nome."
-    });
-
-  }
+    const {
+      name,
+      items
+    } = req.body || {};
 
 
-  if (
-    !Array.isArray(items) ||
-    items.length === 0
-  ) {
-
-    return res.status(400).json({
-      error: "Carrinho vazio."
-    });
-
-  }
-
-
-  const cleanItems = [];
-
-  let total = 0;
-
-
-  for (const item of items) {
-
-    const product = products.find(
-      product =>
-        product.id === Number(item.id)
-    );
-
-
-    const quantity = Math.max(
-      0,
-      Math.floor(
-        Number(item.qty) || 0
-      )
-    );
-
-
-    if (!product || quantity < 1) {
+    if (!name) {
 
       return res.status(400).json({
-        error: "Produto inválido."
+        error: "Digite seu nome."
       });
 
     }
 
 
-    if (quantity > product.stock) {
+    if (
+      !Array.isArray(items) ||
+      items.length === 0
+    ) {
 
       return res.status(400).json({
-        error:
-          `Estoque insuficiente: ${product.name}`
+        error: "Carrinho vazio."
       });
 
     }
 
 
-    cleanItems.push({
-      productId: product.id,
-      name: product.name,
-      price: product.price,
-      qty: quantity
+    const cleanItems = [];
+
+    let total = 0;
+
+
+    for (const item of items) {
+
+      const product = products.find(
+        product =>
+          product.id === Number(item.id)
+      );
+
+
+      const quantity = Math.max(
+        0,
+        Math.floor(
+          Number(item.qty) || 0
+        )
+      );
+
+
+      if (!product || quantity < 1) {
+
+        return res.status(400).json({
+          error: "Produto inválido."
+        });
+
+      }
+
+
+      if (quantity > product.stock) {
+
+        return res.status(400).json({
+          error:
+            `Estoque insuficiente: ${product.name}`
+        });
+
+      }
+
+
+      cleanItems.push({
+
+        productId: product.id,
+
+        name: product.name,
+
+        price: product.price,
+
+        qty: quantity
+
+      });
+
+
+      total +=
+        product.price * quantity;
+
+    }
+
+
+    const order = {
+
+      id: Date.now(),
+
+      userName: String(name),
+
+      items: cleanItems,
+
+      total,
+
+      status: "aguardando_pagamento",
+
+      createdAt:
+        new Date().toISOString()
+
+    };
+
+
+    await pool.query(
+      `
+        INSERT INTO orders
+        (
+          id,
+          user_name,
+          items,
+          total,
+          status,
+          created_at
+        )
+        VALUES
+        ($1, $2, $3, $4, $5, $6)
+      `,
+      [
+        order.id,
+        order.userName,
+        JSON.stringify(order.items),
+        order.total,
+        order.status,
+        order.createdAt
+      ]
+    );
+
+
+    return res.status(200).json(order);
+
+
+  } catch (error) {
+
+    console.error(error);
+
+    return res.status(500).json({
+
+      error:
+        "Erro ao salvar o pedido."
+
     });
 
-
-    total +=
-      product.price * quantity;
-
   }
-
-
-  const order = {
-
-    id: Date.now(),
-
-    userId: null,
-
-    userName: String(name),
-
-    items: cleanItems,
-
-    total,
-
-    status: "aguardando_pagamento",
-
-    createdAt:
-      new Date().toISOString()
-
-  };
-
-
-  return res.status(200).json(order);
 
 };
