@@ -47,10 +47,12 @@ module.exports = async (req, res) => {
         name: "50K",
         price: 15
       },
+
       2: {
         name: "100K",
         price: 30
       },
+
       3: {
         name: "200K",
         price: 60
@@ -58,6 +60,7 @@ module.exports = async (req, res) => {
     };
 
     let total = 0;
+
     const orderItems = [];
 
     for (const item of items) {
@@ -66,7 +69,8 @@ module.exports = async (req, res) => {
 
       if (!product) {
         return res.status(400).json({
-          error: `Produto ${item.id} não encontrado.`
+          error:
+            `Produto ${item.id} não encontrado.`
         });
       }
 
@@ -86,9 +90,14 @@ module.exports = async (req, res) => {
         price: product.price,
         qty: qty
       });
+
     }
 
     const orderId = Date.now();
+
+    /*
+      SALVA O PEDIDO
+    */
 
     await pool.query(
       `
@@ -114,6 +123,10 @@ module.exports = async (req, res) => {
       ]
     );
 
+    /*
+      TOKEN DO MERCADO PAGO
+    */
+
     const accessToken =
       process.env.MERCADOPAGO_ACCESS_TOKEN;
 
@@ -121,10 +134,14 @@ module.exports = async (req, res) => {
 
       return res.status(500).json({
         error:
-          "MERCADOPAGO_ACCESS_TOKEN não está configurado."
+          "MERCADOPAGO_ACCESS_TOKEN não está configurado na Vercel."
       });
 
     }
+
+    /*
+      CRIA O PIX
+    */
 
     const idempotencyKey =
       crypto.randomUUID();
@@ -195,28 +212,34 @@ module.exports = async (req, res) => {
     const mpData =
       await mpResponse.json();
 
+    /*
+      MOSTRA O ERRO COMPLETO
+    */
+
     if (!mpResponse.ok) {
 
       console.error(
         "ERRO MERCADO PAGO:",
-        JSON.stringify(
-          mpData,
-          null,
-          2
-        )
+        mpData
       );
 
       return res.status(400).json({
 
         error:
-          "Não foi possível criar o Pix.",
-
-        details:
-          JSON.stringify(mpData)
+          "MERCADO PAGO RECUSOU O PIX:\n\n" +
+          JSON.stringify(
+            mpData,
+            null,
+            2
+          )
 
       });
 
     }
+
+    /*
+      DADOS DO PAGAMENTO
+    */
 
     const payment =
       mpData
@@ -226,6 +249,10 @@ module.exports = async (req, res) => {
 
     const paymentMethod =
       payment?.payment_method;
+
+    /*
+      SALVA OS DADOS DO PIX
+    */
 
     await pool.query(
       `
@@ -240,13 +267,22 @@ module.exports = async (req, res) => {
       `,
       [
         mpData.id || null,
+
         payment?.id || null,
+
         paymentMethod?.qr_code || null,
+
         paymentMethod?.qr_code_base64 || null,
+
         paymentMethod?.ticket_url || null,
+
         orderId
       ]
     );
+
+    /*
+      RETORNA O PIX
+    */
 
     return res.status(200).json({
 
@@ -305,9 +341,7 @@ module.exports = async (req, res) => {
     return res.status(500).json({
 
       error:
-        "Erro ao criar pedido.",
-
-      details:
+        "Erro ao criar pedido:\n\n" +
         error.message
 
     });
