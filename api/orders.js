@@ -1,4 +1,5 @@
 const { Pool } = require("pg");
+const crypto = require("crypto");
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -89,7 +90,11 @@ module.exports = async (req, res) => {
 
     const orderId = Date.now();
 
-    const result = await pool.query(
+    /*
+      1. SALVA O PEDIDO
+    */
+
+    await pool.query(
       `
         INSERT INTO orders
         (
@@ -102,14 +107,6 @@ module.exports = async (req, res) => {
         )
         VALUES
         ($1, $2, $3, $4, $5, $6)
-        RETURNING
-          id,
-          user_name,
-          items,
-          total,
-          status,
-          email,
-          created_at
       `,
       [
         orderId,
@@ -121,26 +118,240 @@ module.exports = async (req, res) => {
       ]
     );
 
+    /*
+      2. VERIFICA O TOKEN
+    */
+
+    const accessToken =
+      process.env.MERCADOPAGO_ACCESS_TOKEN;
+
+    if (!accessToken) {
+
+      return res.status(500).json({
+        error:
+          "MERCADOPAGO_ACCESS_TOKEN não está configurado."
+      });
+
+    }
+
+    /*
+      3. CRIA O PIX NO MERCADO PAGO
+    */
+
+    const idempotencyKey =
+      crypto.randomUUID();
+
+    const mpResponse = await fetch(
+      "https://api.mercadopago.com/v1/orders",
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+
+          "Authorization":
+            `Bearer ${accessToken}`,
+
+          "X-Idempotency-Key":
+            idempotencyKey
+        },
+
+        body: JSON.stringify({
+
+          type: "online",
+
+          total_amount:
+            total.toFixed(2),
+
+          external_reference:
+            String(orderId),
+
+          processing_mode:
+            "automatic",
+
+          transactions: {
+
+            payments: [
+
+              {
+
+                amount:
+                  total.toFixed(2),
+
+                payment_method: {
+
+                  id: "pix",
+
+                  type: "bank_transfer"
+
+                }
+
+              }
+
+            ]
+
+          },
+
+          payer: {
+
+            email:
+              email.trim()
+
+          }
+
+        })
+      }
+    );
+
+    const mpData =
+      await mpResponse.json();
+
+    /*
+      4. SE MERCADO PAGO RECUSAR,
+         MOSTRA O ERRO EXATO
+    */
+
+    if (!mpResponse.ok) {
+
+      console.error(
+        "ERRO MERCADO PAGO:",
+        JSON.stringify(
+          mpData,
+          null,
+          2
+        )
+      );
+
+      return res.status(400).json({
+
+        error:
+          "Não foi possível criar o Pix.",
+
+        mercadoPagoError:
+          mpData
+
+      });
+
+    }
+
+    /*
+      5. PEGA OS DADOS DO PIX
+    */
+
+    const payment =
+      mpData
+        ?.transactions
+        ?.payments
+        ?.[0];
+
+    const paymentMethod =
+      payment?.payment_method;
+
+    /*
+      6. SALVA OS DADOS DO PIX
+         NO PEDIDO
+    */
+
+    await pool.query(
+      `
+        UPDATE orders
+
+        SET
+
+          mercado_pago_order_id = $1,
+
+          mercado_pago_payment_id = $2,
+
+          pix_qr_code = $3,
+
+          pix_qr_code_base64 = $4,
+
+          pix_ticket_url = $5
+
+        WHERE id = $6
+      `,
+      [
+        mpData.id || null,
+
+        payment?.id || null,
+
+        paymentMethod?.qr_code || null,
+
+        paymentMethod?.qr_code_base64 || null,
+
+        paymentMethod?.ticket_url || null,
+
+        orderId
+      ]
+    );
+
+    /*
+      7. DEVOLVE O PIX PARA A LOJA
+    */
+
     return res.status(200).json({
-      id: result.rows[0].id,
-      userName: result.rows[0].user_name,
-      email: result.rows[0].email,
-      items: result.rows[0].items,
-      total: Number(result.rows[0].total),
-      status: result.rows[0].status,
-      createdAt: result.rows[0].created_at
+
+      id:
+        orderId,
+
+      userName:
+        name,
+
+      email:
+        email,
+
+      items:
+        orderItems,
+
+      total:
+        total,
+
+      status:
+        "aguardando_pagamento",
+
+      pix: {
+
+        orderId:
+          mpData.id || null,
+
+        paymentId:
+          payment?.id || null,
+
+        status:
+          payment?.status || null,
+
+        statusDetail:
+          payment?.status_detail || null,
+
+        qrCode:
+          paymentMethod?.qr_code || null,
+
+        qrCodeBase64:
+          paymentMethod?.qr_code_base64 || null,
+
+        ticketUrl:
+          paymentMethod?.ticket_url || null
+
+      }
+
     });
 
   } catch (error) {
 
     console.error(
-      "ERRO AO SALVAR PEDIDO:",
+      "ERRO GERAL:",
       error
     );
 
     return res.status(500).json({
-      error: "Erro ao salvar pedido.",
-      details: error.message
+
+      error:
+        "Erro ao criar pedido.",
+
+      details:
+        error.message
+
     });
 
   }
