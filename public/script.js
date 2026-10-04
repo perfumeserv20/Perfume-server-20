@@ -301,24 +301,10 @@ async function confirmOrder() {
       .value
       .trim();
 
-  const phone =
-    document
-      .getElementById("customerPhone")
-      .value
-      .trim();
-
 
   if (!name) {
 
     alert("Digite seu nome.");
-
-    return;
-  }
-
-
-  if (!phone) {
-
-    alert("Digite seu WhatsApp.");
 
     return;
   }
@@ -376,8 +362,6 @@ async function confirmOrder() {
 
           name: name,
 
-          phone: phone,
-
           items: items
 
         })
@@ -416,10 +400,6 @@ async function confirmOrder() {
 
     document
       .getElementById("customerName")
-      .value = "";
-
-    document
-      .getElementById("customerPhone")
       .value = "";
 
 
